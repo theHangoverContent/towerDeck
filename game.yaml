@@ -1,0 +1,148 @@
+game:
+  name: "Tower Clash: Diamonds & Kings"
+  players: { min: 2, max: 4 }
+  deck:
+    decks_of_52: 1
+    recommended_decks_for_4p: 2
+    reshuffle_discard_when_empty: true
+
+  victory:
+    tower_goal_steps: 20
+    tower_floor_steps: 0
+
+  ranks: ["A","2","3","4","5","6","7","8","9","10","J","Q","K"]
+  suits:
+    hearts:
+      symbol: "♥"
+      colorRole: "positive"
+    spades:
+      symbol: "♠"
+      colorRole: "black"
+    clubs:
+      symbol: "♣"
+      colorRole: "black"
+    diamonds:
+      symbol: "♦"
+      colorRole: "neutral_special"
+
+  round1:
+    definition: "Round 1 ends after each player has taken exactly one turn."
+
+  zones:
+    - drawPile
+    - discardPile
+    - publicDiamondRow
+    - playerHand
+    - playerBuildArea
+
+  diamonds:
+    must_reveal_end_of_turn: true
+    public_row_spent_when_used_in_combo: true
+    ownership_tracking: true
+    ownership_definition: "diamond is associated with the last player who placed it face-up"
+
+    swap:
+      once_per_turn: true
+      rule: "Swap ownership markers of one of your public diamonds with one public diamond of another player."
+
+    command:
+      cost: "discard 1 diamond (yours or from hand in Round 1)"
+      target_discard: 1
+      effects_by_target_discard:
+        black: { target_steps_delta: -1 }
+        heart: { active_steps_delta: +1 }
+        diamond:
+          if_round1: { target_draw: 1 }
+          if_not_round1: { trigger: "diamond_hoarding_penalty" }
+
+    hoarding_penalty:
+      condition: "after Round 1, a player discards a diamond from hand"
+      effects:
+        - discard_all_hand_cards: true
+        - discard_all_owned_public_diamonds: true
+        - steps_delta: -1
+        - draw_cards: 6
+
+    jackpot_6_diamonds:
+      condition: "player has 6 diamonds total (hand in Round 1 + owned public diamonds)"
+      effects:
+        - steps_delta: +6
+        - discard_6_diamonds: true
+        - refill_hand_to: 6
+
+  hand_rules:
+    start_hand_size: 6
+    empty_hand_penalty_at_end_of_turn:
+      effects:
+        - steps_delta: -1
+        - draw_cards: 6
+      steps_floor: 0
+
+    skip_turn_cycle:
+      option: true
+      effect:
+        - discard_1_from_hand: true
+        - draw_1: true
+        - if_discarded_is_diamond: "may_repeat_discard_draw"
+
+  combos:
+    # All combos require same rank
+    standard:
+      - id: "two_blacks"
+        cards: [{suitRole:"black", count:2}]
+        steps_delta: +1
+      - id: "heart_plus_black"
+        cards: [{suit:"♥", count:1},{suitRole:"black", count:1}]
+        steps_delta: +2
+      - id: "heart_plus_both_blacks"
+        cards: [{suit:"♥", count:1},{suit:"♠", count:1},{suit:"♣", count:1}]
+        steps_delta: +3
+
+    diamond_interactions:
+      - id: "heart_plus_diamond"
+        cards: [{suit:"♥", count:1},{suit:"♦", count:1}]
+        steps_delta: +1
+        draw: 1
+      - id: "diamond_plus_black"
+        cards: [{suit:"♦", count:1},{suitRole:"black", count:1}]
+        discard_from_hand: 1
+        draw: 1
+      - id: "three_kind_including_diamond"
+        cards: [{sameRank:true, totalCards:3, mustIncludeSuit:"♦"}]
+        steps_delta: +1
+        discard_from_hand: 1
+        draw: 1
+      - id: "four_of_kind_any_rank"
+        cards: [{sameRank:true, totalCards:4}]
+        steps_delta: +3
+        draw: 1
+        override_if_rank_is_king: "four_kings_special"
+
+  kings:
+    step_gain_multiplier_for_king_rank_combos: 2
+    four_kings_special:
+      required_cards: [{rank:"K", suit:"♥"},{rank:"K", suit:"♠"},{rank:"K", suit:"♣"},{rank:"K", suit:"♦"}]
+      steps_delta: +6
+      draw: 2
+
+    discard_triggers:
+      when_a_king_is_discarded_as_cost_or_effect:
+        black_king: { discarder_steps_delta: -2 }
+        heart_king: { discarder_steps_delta: +2 }
+        diamond_king:{ discarder_draw: 2 }
+
+engine:
+  turn_sequence:
+    - draw_phase: "active draws 1"
+    - optional_skip_turn_cycle: "if used, end turn"
+    - action_phase:
+        allowed_actions:
+          - play_cards_to_build_area
+          - cash_in_combos_any_number
+          - diamond_swap_once
+          - diamond_command_any_number_if_pay_cost
+          - jackpot_if_available
+    - end_of_turn:
+        - if_hand_empty_apply_penalty
+        - reveal_all_diamonds_to_public_row_and_set_ownership
+        - check_victory
