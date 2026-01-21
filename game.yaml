@@ -109,8 +109,8 @@ game:
         draw: 1
       - id: "three_kind_including_diamond"
         cards: [{sameRank:true, totalCards:3, mustIncludeSuit:"♦"}]
-        steps_delta: +1
-        discard_from_hand: 1
+        steps_delta: +2
+        discard_from_hand: 0
         draw: 1
       - id: "three_of_kind_basic"
         cards: [{sameRank:true, totalCards:3}]

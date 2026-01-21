@@ -278,44 +278,69 @@ def get_combo_discard(combo_id: str) -> int:
 
 # ============ DIAMOND ACTIONS ============
 
-def diamond_command(state: GameState, active: Player, target: Player) -> None:
+def diamond_command(state: GameState, active: Player, target: Player, 
+                    diamond_to_pay_idx: Optional[int] = None,
+                    card_to_discard_idx: Optional[int] = None) -> Optional[Card]:
     """
     Diamond Command: pay 1 diamond to force target to discard 1.
     Must have a diamond in hand or public.
-    """
-    # Check if active has a diamond to pay (simplified: first available)
-    if not (active.count_diamonds_in_hand() > 0 or len(active.public_diamonds) > 0):
-        return  # No diamonds to pay
     
-    # Pay 1 diamond (simplified: from hand first, then public)
+    Args:
+        state: Game state
+        active: Player using the command
+        target: Player being targeted
+        diamond_to_pay_idx: Index of diamond to pay (None = auto-select)
+        card_to_discard_idx: Index of card target should discard (None = auto-select)
+    
+    Returns:
+        The card that was discarded, or None
+    """
+    # Check if active has a diamond to pay
+    if not (active.count_diamonds_in_hand() > 0 or len(active.public_diamonds) > 0):
+        return None  # No diamonds to pay
+    
+    # Pay 1 diamond (no effects on attacker)
     if active.count_diamonds_in_hand() > 0:
-        diamond = next(c for c in active.hand if c.suit == Suit.DIAMONDS)
-        discard_from_hand(state, active, diamond)
+        if diamond_to_pay_idx is None:
+            diamond = next(c for c in active.hand if c.suit == Suit.DIAMONDS)
+        else:
+            diamond = active.hand[diamond_to_pay_idx]
+        # Use discard_card instead of discard_from_hand to avoid King trigger effects
+        discard_card(state, active, diamond)
     else:
-        diamond_to_pay = active.public_diamonds[0]
+        if diamond_to_pay_idx is None:
+            diamond_to_pay = active.public_diamonds[0]
+        else:
+            diamond_to_pay = active.public_diamonds[diamond_to_pay_idx]
         state.public_diamonds.remove(diamond_to_pay)
         state.discard_pile.append(diamond_to_pay.card)
     
     # Target discards 1
     if len(target.hand) == 0:
-        return
+        return None
     
-    discarded = target.hand[0]  # Simplified: first card
+    if card_to_discard_idx is None:
+        discarded = target.hand[0]  # Auto-select first
+    else:
+        discarded = target.hand[card_to_discard_idx]
+    
     discard_from_hand(state, target, discarded)
     
-    # Apply effects based on discarded card
+    # Apply effects based on discarded card (only to target, not active)
     if discarded.suit in [Suit.SPADES, Suit.CLUBS]:
         # Black: target -1 step
         target.steps = max(state.tower_floor, target.steps - 1)
     elif discarded.suit == Suit.HEARTS:
-        # Heart: active +1 step
-        active.steps += 1
+        # Heart: target +1 step (the one who discarded)
+        target.steps += 1
     elif discarded.suit == Suit.DIAMONDS:
-        # Diamond
+        # Diamond: only target affected
         if state.is_round1():
             draw_card(state, target)
         else:
             apply_hoarding_penalty(state, target)
+    
+    return discarded
 
 
 def apply_hoarding_penalty(state: GameState, player: Player) -> None:
@@ -400,8 +425,11 @@ def execute_turn(state: GameState, player: Player) -> None:
     
     # Update turn tracking
     state.turns_completed_total += 1
-    if state.turns_completed_total == len(state.players):
-        state.round_index = 2
+    
+    # Increment round when all players have completed a turn
+    turns_in_current_round = state.turns_completed_total % len(state.players)
+    if turns_in_current_round == 0:
+        state.round_index += 1
     
     # Check victory
     if player.steps >= state.goal_steps:
