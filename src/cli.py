@@ -150,13 +150,15 @@ class InteractiveCLI:
         
         # Select target
         print("\nSelect target player:")
-        for p in self.state.players:
-            if p.id != player.id:
-                print(f"  {p.id}. {p.name}")
+        other_players = [p for p in self.state.players if p.id != player.id]
+        for i, p in enumerate(other_players):
+            print(f"  {i}. {p.name}")
         
         try:
-            target_id = int(input("> ").strip())
-            target = self.state.players[target_id]
+            target_idx = int(input("> ").strip())
+            if target_idx < 0 or target_idx >= len(other_players):
+                raise IndexError()
+            target = other_players[target_idx]
         except (ValueError, IndexError):
             print("✗ Invalid target")
             return False
@@ -221,13 +223,15 @@ class InteractiveCLI:
         
         # Select target
         print("\nSelect target player to swap with:")
-        for p in self.state.players:
-            if p.id != player.id:
-                print(f"  {p.id}. {p.name}")
+        other_players = [p for p in self.state.players if p.id != player.id]
+        for i, p in enumerate(other_players):
+            print(f"  {i}. {p.name}")
         
         try:
-            target_id = int(input("> ").strip())
-            target = self.state.players[target_id]
+            target_idx = int(input("> ").strip())
+            if target_idx < 0 or target_idx >= len(other_players):
+                raise IndexError()
+            target = other_players[target_idx]
         except (ValueError, IndexError):
             print("✗ Invalid target")
             return False

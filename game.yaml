@@ -112,6 +112,9 @@ game:
         steps_delta: +1
         discard_from_hand: 1
         draw: 1
+      - id: "three_of_kind_basic"
+        cards: [{sameRank:true, totalCards:3}]
+        steps_delta: +1
       - id: "four_of_kind_any_rank"
         cards: [{sameRank:true, totalCards:4}]
         steps_delta: +3

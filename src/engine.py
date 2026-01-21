@@ -157,11 +157,14 @@ def identify_combo(cards: List[Card]) -> Optional[str]:
     if num_cards == 4:
         return "four_of_kind_any_rank"
     
-    # Three of a kind with diamond
+    # Three of a kind (with or without diamond)
     if num_cards == 3:
         has_diamond = any(c.suit == Suit.DIAMONDS for c in cards)
         if has_diamond:
             return "three_kind_including_diamond"
+        else:
+            # Three of a kind without diamond is also valid (basic combo)
+            return "three_of_kind_basic"
     
     # Two cards
     if num_cards == 2:
@@ -247,6 +250,7 @@ def get_combo_steps(combo_id: str) -> int:
         "heart_plus_diamond": 1,
         "diamond_plus_black": 0,
         "three_kind_including_diamond": 1,
+        "three_of_kind_basic": 1,
         "four_of_kind_any_rank": 3,
     }
     return steps_map.get(combo_id, 0)
